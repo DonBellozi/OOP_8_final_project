@@ -38,7 +38,8 @@ OOP_8_final_project/
 │   │   └── Wallet.java
 │   ├── service/
 │   │   ├── ReportService.java
-│   │   └── UserService.java
+│   │   ├── UserService.java
+│   │   └── WalletService.java
 │   ├── util/
 │   │   └── Validator.java
 │   ├── Main.java
@@ -47,7 +48,8 @@ OOP_8_final_project/
 │           ├── model/
 │           │   └── WalletTest.java
 │           └── service/
-│               └── UserServiceTest.java
+│               ├── UserServiceTest.java
+|               └── WalletServiceTest.java
 ├── junit-platform-console-standalone-1.14.1.jar
 ├── README.md
 └── build_and_test.ps1
@@ -77,13 +79,7 @@ OOP_8_final_project/
 | 8 | Сохранить и выйти из аккаунта                          |
 
 
-# сборка и запуск тестов (PowerShell)
-New-Item -ItemType Directory -Force out | Out-Null
-$main = Get-ChildItem -Recurse -Filter *.java -Path .\src | ? { $_.FullName -notmatch '\\src\\test\\' } | % FullName
-javac -d .\out $main
-$tests = Get-ChildItem -Recurse -Filter *.java -Path .\src\test\java | % FullName
-javac -d .\out -cp ".;.\out;.\junit-platform-console-standalone-1.14.1.jar" $tests
-java -jar ".\junit-platform-console-standalone-1.14.1.jar" -cp ".\out" --scan-classpath
+
 
 
 

@@ -3,7 +3,8 @@ package model;
 import java.time.LocalDateTime;
 
 public class Transaction {
-    public enum Type {INCOME, EXPENSE}
+
+    public enum Type { INCOME, EXPENSE }
 
     public final Type type;
     public final String category;
@@ -20,7 +21,7 @@ public class Transaction {
         this.category = category;
         this.amount = amount;
         this.note = note == null ? "" : note;
-        this.createdAt = createdAt;
+        this.createdAt = createdAt == null ? LocalDateTime.now() : createdAt;
     }
 
     @Override

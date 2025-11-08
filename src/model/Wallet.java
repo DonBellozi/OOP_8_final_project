@@ -1,11 +1,18 @@
 package model;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
+import java.util.function.Predicate;
 
 public class Wallet {
+
     public final List<Transaction> transactions = new ArrayList<>();
     public final Map<String, Double> budgets = new HashMap<>();
+
+    // ---------- Операции ----------
 
     public void addIncome(String cat, double sum, String note) {
         transactions.add(new Transaction(Transaction.Type.INCOME, cat, sum, note));
@@ -22,6 +29,8 @@ public class Wallet {
         budgets.put(cat, limit);
     }
 
+    // ---------- Подсчёты ----------
+
     public double totalIncome() {
         return sum(t -> t.type == Transaction.Type.INCOME);
     }
@@ -35,28 +44,30 @@ public class Wallet {
     }
 
     public double sumByCategories(Collection<String> cats, Transaction.Type type) {
-        Set<String> normalized = new HashSet<>();
-        for (String c : cats)
-            normalized.add(c.trim().toLowerCase(Locale.ROOT));
-
+        Set<String> set = new HashSet<>();
+        for (String c : cats) {
+            set.add(c.trim().toLowerCase(Locale.ROOT));
+        }
         return sum(t ->
-                t.type == type && normalized.contains(t.category.toLowerCase(Locale.ROOT))
+                t.type == type && set.contains(t.category.toLowerCase(Locale.ROOT))
         );
     }
 
-    private double sum(java.util.function.Predicate<Transaction> filter) {
+    private double sum(Predicate<Transaction> filter) {
         return transactions.stream()
                 .filter(filter)
                 .mapToDouble(t -> t.amount)
                 .sum();
     }
 
+    // ---------- Вывод ----------
+
     public void printSummary() {
-        double income = totalIncome();
-        double expense = totalExpense();
-        System.out.printf("Общий доход: %.2f%n", income);
-        System.out.printf("Общие расходы: %.2f%n", expense);
-        System.out.printf("Баланс: %.2f%n", income - expense);
+        double inc = totalIncome();
+        double exp = totalExpense();
+        System.out.printf("Общий доход: %.2f%n", inc);
+        System.out.printf("Общие расходы: %.2f%n", exp);
+        System.out.printf("Баланс: %.2f%n", inc - exp);
     }
 
     public void printBudgets() {
@@ -64,41 +75,56 @@ public class Wallet {
             System.out.println("Бюджеты не заданы.");
             return;
         }
-        System.out.println("\nБюджеты по категориям:");
+
+        System.out.println("Бюджеты по категориям:");
         for (var e : budgets.entrySet()) {
-            double spent = sumByCategory(e.getKey(), Transaction.Type.EXPENSE);
-            double remaining = e.getValue() - spent;
+            String cat = e.getKey();
+            double limit = e.getValue();
+            double spent = sumByCategory(cat, Transaction.Type.EXPENSE);
+            double remaining = limit - spent;
             System.out.printf("- %s: лимит %.2f | потрачено %.2f | остаток %.2f%n",
-                    e.getKey(), e.getValue(), spent, remaining);
+                    cat, limit, spent, remaining);
         }
     }
 
+    // ---------- Оповещения ----------
+
     private void checkBudget(String cat) {
         if (!budgets.containsKey(cat)) return;
+
         double limit = budgets.get(cat);
         double spent = sumByCategory(cat, Transaction.Type.EXPENSE);
 
-        if (spent > limit)
-            System.out.printf("!!! Превышен лимит по '%s': %.2f / %.2f%n", cat, spent, limit);
-        else if (spent >= 0.8 * limit)
-            System.out.printf("!!! Потрачено более 80%% бюджета по '%s'%n", cat);
+        if (spent > limit) {
+            System.out.printf("Внимание: превышен лимит по категории '%s': %.2f / %.2f%n",
+                    cat, spent, limit);
+        } else if (spent >= 0.8 * limit) {
+            System.out.printf("Предупреждение: израсходовано более 80%% бюджета по '%s'%n", cat);
+        }
     }
 
     private void checkTotals() {
-        if (totalExpense() > totalIncome())
-            System.out.println("!!! Внимание: расходы превышают доходы!");
+        if (totalExpense() > totalIncome()) {
+            System.out.println("Предупреждение: расходы превышают доходы.");
+        }
     }
 
-    public void save(String login) {
-        try (PrintWriter pw = new PrintWriter(login + "_wallet.txt")) {
-            for (var e : budgets.entrySet())
-                pw.println("B;" + e.getKey() + ";" + e.getValue());
+    // ---------- Сохранение / загрузка ----------
 
-            for (var t : transactions)
+    public void save(String login) {
+        String filename = login + "_wallet.txt";
+        try (PrintWriter pw = new PrintWriter(new FileOutputStream(filename))) {
+            // бюджеты
+            for (var e : budgets.entrySet()) {
+                pw.println("B;" + e.getKey() + ";" + e.getValue());
+            }
+            // транзакции
+            for (var t : transactions) {
                 pw.printf("T;%s;%s;%.2f;%s;%s%n",
                         t.type, t.category, t.amount, t.note, t.createdAt);
+            }
         } catch (IOException e) {
-            System.out.println("Ошибка сохранения: " + e.getMessage());
+            System.out.println("Ошибка сохранения кошелька: " + e.getMessage());
         }
     }
 
@@ -114,8 +140,9 @@ public class Wallet {
 
                 if (line.startsWith("B;")) {
                     String[] p = line.split(";");
-                    if (p.length >= 3)
+                    if (p.length >= 3) {
                         w.budgets.put(p[1], Double.parseDouble(p[2]));
+                    }
                 } else if (line.startsWith("T;")) {
                     String[] p = line.split(";");
                     if (p.length >= 5) {
@@ -123,12 +150,13 @@ public class Wallet {
                         String cat = p[2];
                         double amount = Double.parseDouble(p[3]);
                         String note = p[4];
+                        // timestamp из файла можно игнорировать для простоты
                         w.transactions.add(new Transaction(type, cat, amount, note));
                     }
                 }
             }
         } catch (Exception e) {
-            System.out.println("Ошибка загрузки: " + e.getMessage());
+            System.out.println("Ошибка загрузки кошелька: " + e.getMessage());
         }
         return w;
     }

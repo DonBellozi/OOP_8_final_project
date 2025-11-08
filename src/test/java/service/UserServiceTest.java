@@ -9,7 +9,6 @@ public class UserServiceTest {
     @Test
     void registerAndLogin() {
         UserService us = new UserService();
-        // используем случайный логин, чтобы не пересекаться с реальным users.txt
         String login = "testuser_" + System.nanoTime();
         assertTrue(us.register(login, "pass"));
         User u = us.login(login, "pass");
